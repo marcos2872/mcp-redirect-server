@@ -1,23 +1,105 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# MCP Redirect Server
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Servidor MCP (Model Context Protocol) construído com NestJS e autenticação OAuth integrada.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
+## 🚀 Características
+
+- 🔐 **Autenticação OAuth 2.1** com GitHub
+- 🛠️ **MCP Tools** - Exponha métodos como ferramentas MCP
+- 📡 **SSE Transport** - Server-Sent Events para comunicação em tempo real
+- 🔒 **Guard-based Security** - Proteção de rotas com JWT
+- 💉 **Dependency Injection** - Sistema DI completo do NestJS
+
+## 📦 Instalação
+
+```bash
+pnpm install
+```
+
+## ⚙️ Configuração
+
+### 1. Criar GitHub OAuth App
+
+1. Acesse: https://github.com/settings/developers
+2. Clique em **"New OAuth App"**
+3. Preencha:
+   - **Application name**: `mcp-redirect-server`
+   - **Homepage URL**: `http://localhost:3000`
+   - **Authorization callback URL**: `http://localhost:3000/auth/callback`
+4. Copie o **Client ID** e **Client Secret**
+
+### 2. Configurar variáveis de ambiente
+
+Crie um arquivo `.env` baseado no `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` e adicione suas credenciais:
+
+```env
+# OAuth Provider (GitHub)
+GITHUB_CLIENT_ID=seu_client_id_aqui
+GITHUB_CLIENT_SECRET=seu_client_secret_aqui
+
+# JWT Configuration (mínimo 32 caracteres)
+JWT_SECRET=my-super-secure-jwt-secret-key-with-at-least-32-characters
+
+# Server Configuration
+SERVER_URL=http://localhost:3000
+RESOURCE_URL=http://localhost:3000/mcp
+
+# Port
+PORT=3000
+```
+
+## 🏃 Executar o projeto
+
+```bash
+# desenvolvimento
+pnpm run start:dev
+
+# produção
+pnpm run start:prod
+```
+
+O servidor estará disponível em: `http://localhost:3000`
+
+## 🔌 Endpoints OAuth
+
+- `GET /.well-known/oauth-authorization-server` - Metadata do servidor OAuth (RFC 8414)
+- `GET /.well-known/oauth-protected-resource` - Metadata MCP (RFC 9728)
+- `POST /auth/register` - Registro dinâmico de cliente (RFC 7591)
+- `GET /auth/authorize` - Endpoint de autorização
+- `GET /auth/callback` - Callback OAuth
+- `POST /auth/token` - Endpoint de token
+- `POST /auth/revoke` - Revogação de token
+
+## 🧪 Testar com MCP Inspector
+
+1. Abra o navegador em: `http://localhost:3000/mcp`
+2. Configure o Inspector:
+   - **Transport Type**: SSE
+   - **URL**: `http://localhost:3000/sse`
+   - **Connection Type**: Via Proxy
+3. Clique em **Authentication** para configurar OAuth
+4. Clique em **Connect**
+
+## 🛠️ Tools Disponíveis
+
+- `getUserByEmail` - Obtém um usuário por email
+
+## 📚 Documentação
+
+- [MCP-Nest Documentation](https://github.com/rekog-labs/MCP-Nest)
+- [Model Context Protocol Spec](https://modelcontextprotocol.io)
+- [NestJS Documentation](https://docs.nestjs.com)
+
+## 📝 Licença
+
+[MIT licensed](LICENSE)
+
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
