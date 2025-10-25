@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Tool } from '@rekog/mcp-nest';
@@ -34,10 +38,10 @@ export class DynamicToolsService implements OnModuleInit {
           url: externalMcpUrl,
           token: externalMcpToken,
         });
-        
+
         // Busca as tools do servidor externo
         await this.loadExternalTools();
-        
+
         this.logger.log('Dynamic MCP Proxy initialized successfully');
       } catch (error) {
         this.logger.error('Failed to initialize Dynamic MCP Proxy', error);
@@ -53,9 +57,11 @@ export class DynamicToolsService implements OnModuleInit {
     try {
       const tools = await this.mcpProxy.listTools();
       this.externalTools = tools || [];
-      
-      this.logger.log(`Loaded ${this.externalTools.length} external tools:`, 
-        this.externalTools.map(t => t.name).join(', '));
+
+      this.logger.log(
+        `Loaded ${this.externalTools.length} external tools:`,
+        this.externalTools.map((t) => t.name).join(', '),
+      );
 
       // Registra cada tool externa dinamicamente
       for (const tool of this.externalTools) {
@@ -70,7 +76,7 @@ export class DynamicToolsService implements OnModuleInit {
     try {
       // Cria um schema Zod genérico para a tool
       const toolSchema = this.createSchemaFromInputSchema(tool.inputSchema);
-      
+
       // Cria o método wrapper dinamicamente
       const toolMethod = async (args: any) => {
         this.logger.debug(`Calling external tool: ${tool.name}`, args);
@@ -109,12 +115,15 @@ export class DynamicToolsService implements OnModuleInit {
 
     try {
       // Se tem properties, cria um objeto
-      if (inputSchema.properties && typeof inputSchema.properties === 'object') {
+      if (
+        inputSchema.properties &&
+        typeof inputSchema.properties === 'object'
+      ) {
         const schemaObj: Record<string, z.ZodType<any>> = {};
-        
+
         for (const [key, prop] of Object.entries(inputSchema.properties)) {
           const propSchema = prop as any;
-          
+
           // Cria schema baseado no tipo
           if (propSchema.type === 'string') {
             schemaObj[key] = z.string();
@@ -134,6 +143,7 @@ export class DynamicToolsService implements OnModuleInit {
           }
 
           // Torna opcional se não estiver em required
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
           if (!inputSchema.required?.includes(key)) {
             schemaObj[key] = schemaObj[key].optional();
           }
@@ -145,13 +155,16 @@ export class DynamicToolsService implements OnModuleInit {
       // Fallback para schema genérico
       return z.any().optional();
     } catch (error) {
-      this.logger.warn(`Failed to parse schema for tool, using generic:`, error);
+      this.logger.warn(
+        `Failed to parse schema for tool, using generic:`,
+        error,
+      );
       return z.any().optional();
     }
   }
 
   // Método auxiliar para listar tools carregadas (para debug)
   getLoadedTools(): string[] {
-    return this.externalTools.map(t => t.name);
+    return this.externalTools.map((t) => t.name);
   }
 }
