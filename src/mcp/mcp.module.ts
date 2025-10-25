@@ -1,5 +1,9 @@
 import { Global, Module } from '@nestjs/common';
-import { McpTransportType, McpModule as RekoMcpModule } from '@rekog/mcp-nest';
+import {
+  McpModule as RekoMcpModule,
+  McpAuthJwtGuard,
+  McpTransportType,
+} from '@rekog/mcp-nest';
 import { ToolsService } from './mcp.tools';
 
 @Global()
@@ -9,8 +13,9 @@ import { ToolsService } from './mcp.tools';
       name: 'simple-api',
       version: '1.0.0',
       transport: [McpTransportType.SSE],
+      guards: [McpAuthJwtGuard],
     }),
   ],
-  providers: [ToolsService],
+  providers: [ToolsService, McpAuthJwtGuard],
 })
 export class McpModule {}

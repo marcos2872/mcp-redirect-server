@@ -7,7 +7,8 @@ export class ToolsService {
     name: 'getUserByEmail',
     description: 'Get a specific user by Email',
   })
-  tool() {
+  tool(context?: any) {
+    console.log('Executing tool with context:', context);
     return {
       message: 'tool',
     };
