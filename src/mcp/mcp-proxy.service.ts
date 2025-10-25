@@ -1,38 +1,77 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Logger } from '@nestjs/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-
-interface McpServerConfig {
-  url: string;
-  token?: string;
-  headers?: Record<string, string>;
-}
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class McpProxyService {
+  constructor(private readonly configService: ConfigService) {}
   private readonly logger = new Logger(McpProxyService.name);
   private client: Client | null = null;
   private isConnected = false;
 
-  async connect(config: McpServerConfig): Promise<void> {
+  async getToken(): Promise<string> {
+    const authUrl = this.configService.get<string>('EXTERNAL_API_LOGIN_URL');
+    const user = this.configService.get<string>('EXTERNAL_API_USER');
+    const pass = this.configService.get<string>('EXTERNAL_API_PASSWORD');
+
+    if (!authUrl || !user || !pass) {
+      throw new Error('Authentication configuration is incomplete');
+    }
+
     try {
-      this.logger.log(`Connecting to external MCP server: ${config.url}`);
+      const response = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user, password: pass }),
+      });
 
-      const headers: Record<string, string> = {
-        ...config.headers,
-      };
-
-      // Adiciona token se fornecido
-      if (config.token) {
-        headers['Authorization'] = `Bearer ${config.token}`;
+      if (!response.ok) {
+        throw new Error(
+          `Failed to authenticate: ${response.status} ${response.statusText}`,
+        );
       }
 
-      const transport = new SSEClientTransport(new URL(config.url), {
-        requestInit: {
-          headers,
+      const data = await response.json();
+
+      if (!data.token && !data.access_token) {
+        throw new Error('No token found in authentication response');
+      }
+
+      return data.token || data.access_token;
+    } catch (error) {
+      this.logger.error('Authentication failed', error);
+      throw error;
+    }
+  }
+
+  async connect(): Promise<void> {
+    try {
+      const externalMcpUrl = this.configService.get<string>('EXTERNAL_MCP_URL');
+
+      if (!externalMcpUrl) {
+        this.logger.warn(
+          'EXTERNAL_MCP_URL not configured. Proxy will not connect.',
+        );
+      }
+
+      const token = await this.getToken();
+
+      const transport = new SSEClientTransport(
+        new URL(externalMcpUrl as string),
+        {
+          requestInit: {
+            headers: {
+              authorization: `Bearer ${token}`,
+            },
+          },
         },
-      });
+      );
 
       this.client = new Client(
         {

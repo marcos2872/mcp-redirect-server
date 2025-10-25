@@ -4,33 +4,39 @@ Servidor MCP (Model Context Protocol) que atua como um **proxy transparente** en
 
 ## 🎯 Objetivo
 
-Este servidor resolve o problema de incompatibilidade de autenticação entre:
+Este servidor atua como um **bridge duplo de autenticação**, resolvendo dois problemas de incompatibilidade:
 
-- **Cliente/IA** → Requer autenticação OAuth (GitHub)
-- **Servidor MCP Externo** → Usa autenticação simples (token/API key)
+1. **Cliente → Este Servidor**: Autenticação OAuth 2.1 com GitHub
+2. **Este Servidor → MCP Externo**: Autenticação via API (email/senha → Bearer token)
 
-**Fluxo:**
+**Fluxo Completo:**
 
 ```
 ┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
 │   Cliente   │         │  MCP Proxy       │         │  Servidor MCP   │
-│  (OAuth)    │◄───────►│  (Este projeto)  │◄───────►│  Externo        │
-│             │  OAuth  │                  │  Token  │  (Token Auth)   │
+│     MCP     │◄───────►│  (Este projeto)  │◄───────►│  Externo        │
+│             │  OAuth  │                  │ Bearer  │  (API Login)    │
+│  GitHub     │  2.1    │  OAuth + API     │  Token  │  Email/Pass     │
 └─────────────┘         └──────────────────┘         └─────────────────┘
 ```
 
 ## 🚀 Características
 
-- 🔐 **Autenticação OAuth 2.1** com GitHub no frontend
-- 🌉 **Proxy Transparente** - IA não vê o proxy, apenas as tools/resources/prompts reais
-- � **Auto-Discovery** - Descobre e registra automaticamente tools, resources e prompts
-- 🛠️ **Dynamic Tools** - Tools do servidor externo aparecem como nativas
-- 📁 **Dynamic Resources** - Resources do servidor externo são expostos diretamente
-- 💬 **Dynamic Prompts** - Prompts do servidor externo são mapeados automaticamente
-- 🔑 **Token Authentication** - Conecta ao servidor externo via token/API key
+### Autenticação Dupla:
+
+- 🔐 **OAuth 2.1 com GitHub** - Cliente autentica via OAuth no frontend
+- 🔑 **API Login Automático** - Servidor faz login automático na API externa (email/senha)
+- 🎫 **Bearer Token Management** - Gerencia tokens automaticamente para o servidor MCP externo
+
+### Proxy Features:
+
+- 🌉 **Bridge Transparente** - Conecta diferentes tipos de autenticação
+- �️ **Proxy Tools** - 6 ferramentas para acessar servidor MCP externo
 - 📡 **SSE Transport** - Server-Sent Events para comunicação em tempo real
-- 🔒 **Guard-based Security** - Proteção de rotas com JWT
+- � **Auto-Reconnect** - Reconexão e renovação de tokens automática
+- 🔒 **JWT Security** - Proteção de rotas com JWT
 - 💉 **Dependency Injection** - Sistema DI completo do NestJS
+- 📝 **Logs Detalhados** - Monitoramento completo de autenticação e proxy
 
 ## 📦 Instalação
 
@@ -61,7 +67,7 @@ cp .env.example .env
 Edite o `.env` e adicione suas credenciais:
 
 ```env
-# OAuth Provider (GitHub)
+# OAuth Provider (GitHub) - Para autenticação do cliente
 GITHUB_CLIENT_ID=seu_client_id_aqui
 GITHUB_CLIENT_SECRET=seu_client_secret_aqui
 
@@ -70,31 +76,47 @@ JWT_SECRET=my-super-secure-jwt-secret-key-with-at-least-32-characters
 
 # Server Configuration
 SERVER_URL=http://localhost:3000
-RESOURCE_URL=http://localhost:3000/mcp
+RESOURCE_URL=http://localhost:3000/sse
 
 # Port
 PORT=3000
 
-# External MCP Server (Proxy Configuration)
-EXTERNAL_MCP_URL=http://external-mcp-server.com/sse
-EXTERNAL_MCP_TOKEN=your_external_mcp_token_here
+# External API Authentication - Para autenticação no servidor MCP externo
+EXTERNAL_API_LOGIN_URL=https://api-externa.com/auth/login
+EXTERNAL_API_USER=seu_email@example.com
+EXTERNAL_API_PASSWORD=sua_senha_segura
+
+# External MCP Server - URL SSE do servidor MCP externo
+EXTERNAL_MCP_URL=https://api-externa.com/sse
 ```
 
-### 3. Configure o servidor MCP externo
+### 3. Descrição das Variáveis
 
-Para que o proxy funcione, configure as variáveis do servidor externo:
+#### Autenticação do Cliente (OAuth GitHub):
 
-- `EXTERNAL_MCP_URL` - URL do servidor MCP externo (ex: `http://example.com/sse`)
-- `EXTERNAL_MCP_TOKEN` - Token de autenticação do servidor externo
+- `GITHUB_CLIENT_ID` - Client ID do OAuth App do GitHub
+- `GITHUB_CLIENT_SECRET` - Client Secret do OAuth App do GitHub
+- `JWT_SECRET` - Chave secreta para JWT (mínimo 32 caracteres)
 
-**Exemplo:**
+#### Autenticação no Servidor Externo (API Login):
 
-```env
-EXTERNAL_MCP_URL=http://localhost:3001/api/sse
-EXTERNAL_MCP_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+- `EXTERNAL_API_LOGIN_URL` - URL da API de login do servidor externo
+  - Exemplo: `https://meuservidor.com/auth/login`
+  - O servidor fará POST com `{ email, password }` nesta URL
+- `EXTERNAL_API_USER` - Email/usuário para autenticação na API externa
+- `EXTERNAL_API_PASSWORD` - Senha para autenticação na API externa
 
-**Nota**: Se você não configurar estas variáveis, o servidor funcionará apenas com OAuth sem proxy.
+#### Configuração do Proxy MCP:
+
+- `EXTERNAL_MCP_URL` - URL SSE do servidor MCP externo
+  - Exemplo: `https://meuservidor.com/sse`
+  - Deve ser o endpoint SSE que implementa o protocolo MCP
+
+**Importante**:
+
+- O servidor faz login automático na `EXTERNAL_API_LOGIN_URL` usando email/senha
+- A resposta deve conter um campo `token` ou `access_token`
+- Este token é usado como Bearer token nas requisições para `EXTERNAL_MCP_URL`
 
 ## 🏃 Executar o projeto
 
@@ -108,59 +130,21 @@ pnpm run start:prod
 
 O servidor estará disponível em: `http://localhost:3000`
 
-## 🔌 Endpoints OAuth
+## 🔌 Endpoints
+
+### Endpoints OAuth (Cliente):
 
 - `GET /.well-known/oauth-authorization-server` - Metadata do servidor OAuth (RFC 8414)
 - `GET /.well-known/oauth-protected-resource` - Metadata MCP (RFC 9728)
 - `POST /auth/register` - Registro dinâmico de cliente (RFC 7591)
-- `GET /auth/authorize` - Endpoint de autorização
-- `GET /auth/callback` - Callback OAuth
-- `POST /auth/token` - Endpoint de token
-- `POST /auth/revoke` - Revogação de token
+- `GET /auth/authorize` - Endpoint de autorização OAuth
+- `GET /auth/callback` - Callback OAuth do GitHub
+- `POST /auth/token` - Endpoint de token OAuth
+- `POST /auth/revoke` - Revogação de token OAuth
 
-## 🧪 Testar com MCP Inspector
+### Endpoint MCP:
 
-## MCP Inspector
-
-1. ```bash
-   npx @modelcontextprotocol/nspector
-   ```
-
-1. Configure o Inspector:
-   - **Transport Type**: SSE
-   - **URL**: `http://localhost:3000/sse`
-   - **Connection Type**: Via Proxy
-1. Clique em **Authentication** para configurar OAuth
-1. Clique em **Connect**
-
-## 🛠️ Tools/Resources/Prompts Disponíveis
-
-### **Auto-descobertos do servidor externo:**
-
-O proxy **automaticamente descobre e registra** todos os itens do servidor MCP externo:
-
-- **Tools** → Aparecem com seus nomes reais (ex: `listUsers`, `createUser`)
-- **Resources** → Expostos com URIs reais (ex: `file://data.json`, `db://users`)
-- **Prompts** → Mapeados com nomes reais (ex: `generateReport`, `analyzeData`)
-
-### **Logs de inicialização:**
-
-```
-[DynamicToolsService] Loaded 6 external tools: listUsers, createUser, getUser, updateUser, deleteUser, getUserStats
-[DynamicToolsService] Loaded 3 external resources: file://data.json, db://users, config://app.yaml
-[DynamicToolsService] Loaded 2 external prompts: generateReport, analyzeData
-```
-
-### **Uso direto:**
-
-A IA pode chamar qualquer item descoberto como se fosse nativo:
-
-- `listUsers()` - Lista usuários
-- `createUser({name: "João"})` - Cria usuário
-- Ler `file://data.json` - Acessa arquivo
-- Executar `generateReport` - Gera relatório
-
-**Sem prefixos, sem proxy manual, sem complexidade!** ✨
+- `GET /sse` - Endpoint SSE para conexão MCP (requer autenticação OAuth)
 
 ## 🧪 Testar com MCP Inspector
 
@@ -172,85 +156,70 @@ A IA pode chamar qualquer item descoberto como se fosse nativo:
 3. Clique em **Authentication** para configurar OAuth
 4. Clique em **Connect**
 
-### **O que você verá:**
+**A Client não sabe que existe um proxy!** 🎭
 
-- **Tools**: `listUsers`, `createUser`, etc. (não `proxy_*`)
-- **Resources**: `file://data.json`, `db://users`, etc.
-- **Prompts**: `generateReport`, `analyzeData`, etc.
+## � Como Funciona
 
-### **Para testar:**
+### **Fluxo de Autenticação Dupla:**
 
-1. **Liste tools** → Vê as tools do servidor externo como nativas
-2. **Chame tool** → `listUsers` (sem `proxy_call_tool`)
-3. **Acesse resource** → Leia `file://data.json` diretamente
-4. **Execute prompt** → `generateReport` como se fosse local
-
-**A IA não sabe que existe um proxy!** 🎭
-
-## 🛠️ Como funciona o Proxy Transparente
-
-### **Auto-Discovery na Inicialização:**
-
-1. **Conecta** ao servidor MCP externo via token
-2. **Descobre** todas as tools, resources e prompts disponíveis
-3. **Registra dinamicamente** cada item como se fosse nativo
-4. **Aplica decoradores** `@Tool`, `@Resource`, `@Prompt` automaticamente
-
-### **Para a IA (Cliente):**
-
-- ✅ Vê `listUsers`, `createUser`, `getReport` (tools reais)
-- ✅ Vê `file://data.json`, `db://users` (resources reais)
-- ✅ Vê `generateReport`, `analyzeData` (prompts reais)
-- ❌ **NÃO vê** `proxy_*` ou qualquer indicação de proxy
-
-### **Redirecionamento Automático:**
-
-- **Tool Call** `listUsers()` → Redireciona para servidor externo
-- **Resource Read** `file://data.json` → Busca no servidor externo
-- **Prompt Get** `generateReport` → Executa no servidor externo
-
-## 🎭 Transparência Total
-
-A IA interage com o servidor como se fosse **direto**, sem saber da existência do proxy:
+#### 1. Cliente se autentica no Proxy (OAuth GitHub):
 
 ```
-IA pensa:    "Vou chamar a tool 'listUsers'"
-Realidade:   OAuth → Proxy → Token → Servidor Externo → Resposta → Proxy → IA
-IA recebe:   Lista de usuários (como se fosse direto)
+Cliente → GET /auth/authorize
+       → Redireciona para GitHub
+       → Usuário autoriza
+       → GET /auth/callback
+       → Recebe JWT token
 ```
 
-## 📋 Exemplo de Uso
+#### 2. Proxy se autentica no Servidor Externo (API Login):
 
-### **Antes (com proxy manual):**
-
-```json
-{
-  "tool": "proxy_call_tool",
-  "args": {
-    "toolName": "listUsers",
-    "toolArgs": {}
-  }
-}
+```
+Proxy → POST EXTERNAL_API_LOGIN_URL
+      → Body: { email: USER, password: PASS }
+      → Recebe: { token: "Bearer..." }
+      → Armazena token
 ```
 
-### **Agora (transparente):**
+#### 3. Cliente usa o Proxy com proxy tools:
 
-```json
-{
-  "tool": "listUsers"
-}
+```
+Cliente → callTool('proxy_list_tools') com JWT
+Proxy   → Valida JWT do cliente
+Proxy   → Conecta ao servidor externo com Bearer token
+Proxy   → client.listTools() via SSE
+Servidor Externo → Retorna lista de tools
+Proxy   → Retorna resposta ao cliente
 ```
 
-A IA simplesmente chama `listUsers` como se fosse uma tool nativa! 🎉
+### **Fluxo Completo de uma Chamada:**
+
+```
+┌─────────┐  1. OAuth JWT    ┌───────────┐  2. Bearer Token  ┌──────────┐
+│ Cliente │ ───────────────→ │   Proxy   │ ─────────────────→│ Servidor │
+│   MCP   │                  │   Server  │                   │  Externo │
+│         │ ←─────────────── │           │ ←──────────────── │   MCP    │
+└─────────┘  4. Resposta     └───────────┘  3. Resposta      └──────────┘
+```
+
+### **Inicialização Automática:**
+
+Quando o servidor inicia:
+
+1. ✅ Configura OAuth com GitHub para clientes
+2. ✅ Faz login automático na API externa
+3. ✅ Conecta ao servidor MCP externo via SSE com Bearer token
+4. ✅ Registra as proxy tools
+5. ✅ Fica pronto para aceitar conexões de clientes
 
 ## 📚 Documentação
 
 ### **Conceitos principais:**
 
-- **Proxy Transparente**: IA não vê o proxy, apenas tools/resources/prompts reais
-- **Auto-Discovery**: Sistema descobre automaticamente itens do servidor externo
-- **Dynamic Registration**: Items são registrados dinamicamente como nativos
-- **OAuth Bridge**: Converte autenticação OAuth para token simples
+- **Double Authentication Bridge**: Ponte entre OAuth (cliente) e API Login (servidor externo)
+- **Proxy Tools**: ferramentas para acessar servidor MCP externo de forma controlada
+- **Token Management**: Gerenciamento automático de JWT (cliente) e Bearer tokens (servidor)
+- **SSE Transport**: Comunicação em tempo real via Server-Sent Events
 
 ### **Links úteis:**
 
@@ -258,29 +227,53 @@ A IA simplesmente chama `listUsers` como se fosse uma tool nativa! 🎉
 - [Model Context Protocol Spec](https://modelcontextprotocol.io)
 - [NestJS Documentation](https://docs.nestjs.com)
 - [OAuth 2.1 Specification](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1)
+- [MCP SDK Documentation](https://github.com/modelcontextprotocol/sdk)
 
 ## 🚀 Benefícios
 
-### **Para Desenvolvedores:**
+- ✅ **Bridge Duplo**: Conecta OAuth (cliente) com API Login (servidor externo)
+- ✅ **Sem Modificação**: Usa servidores MCP existentes sem mudanças
+- ✅ **Segurança em Camadas**: OAuth no frontend + Bearer token no backend
+- ✅ **Gerenciamento Automático**: Tokens gerenciados automaticamente
+- ✅ **Isolamento de Credenciais**: Servidor externo nunca vê credenciais OAuth
+- ✅ **Logs Detalhados**: Monitoramento completo de autenticação e proxy
+- ✅ **Produção-Ready**: Implementação completa do protocolo MCP
+- ✅ **Flexível**: Fácil configuração via variáveis de ambiente
 
-- ✅ Reutiliza servidores MCP existentes sem modificações
-- ✅ Adiciona OAuth a qualquer servidor MCP
-- ✅ Zero configuração manual de tools/resources/prompts
-- ✅ Logs detalhados de descoberta e redirecionamento
+## 🔒 Segurança
 
-### **Para IAs:**
+- ✅ **OAuth 2.1**: Autenticação segura de clientes via GitHub
+- ✅ **JWT Tokens**: Tokens assinados e validados
+- ✅ **Credenciais Isoladas**: Senhas apenas em variáveis de ambiente
+- ✅ **Logs Sanitizados**: Senhas nunca aparecem nos logs
+- ✅ **Bearer Tokens**: Comunicação segura com servidor externo
+- ✅ **HTTPS Ready**: Preparado para produção com HTTPS
 
-- ✅ Interface simples e direta (sem `proxy_*`)
-- ✅ Tools/resources/prompts aparecem como nativos
-- ✅ Schemas corretos e validação automática
-- ✅ Experiência transparente
+## 🛠️ Troubleshooting
 
-### **Para Sistemas:**
+### Erro: "Authentication configuration is incomplete"
 
-- ✅ Bridge entre autenticações incompatíveis
-- ✅ Segurança OAuth no frontend
-- ✅ Flexibilidade de token no backend
-- ✅ Escalabilidade e performance
+Verifique se todas as variáveis estão no `.env`:
+
+- `EXTERNAL_API_LOGIN_URL`
+- `EXTERNAL_API_USER`
+- `EXTERNAL_API_PASSWORD`
+
+### Erro: "Failed to authenticate"
+
+- Confirme que a URL de login está correta
+- Verifique se email/senha são válidos
+- Confirme que a API retorna `token` ou `access_token`
+
+### Erro: "EXTERNAL_MCP_URL not configured"
+
+Configure `EXTERNAL_MCP_URL` no `.env` com a URL SSE do servidor externo.
+
+### Cliente não consegue conectar via OAuth
+
+- Verifique `GITHUB_CLIENT_ID` e `GITHUB_CLIENT_SECRET`
+- Confirme que a callback URL no GitHub está correta: `http://localhost:3000/auth/callback`
+- Verifique se `JWT_SECRET` tem pelo menos 32 caracteres
 
 ## 📝 Licença
 

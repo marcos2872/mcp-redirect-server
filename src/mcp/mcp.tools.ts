@@ -5,38 +5,20 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { Tool } from '@rekog/mcp-nest';
 import { McpProxyService } from './mcp-proxy.service';
-import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 
 @Injectable()
 export class ToolsService implements OnModuleInit {
   private readonly logger = new Logger(ToolsService.name);
 
-  constructor(
-    private readonly mcpProxy: McpProxyService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly mcpProxy: McpProxyService) {}
 
   async onModuleInit() {
-    // Conecta ao servidor MCP externo na inicialização
-    const externalMcpUrl = this.configService.get<string>('EXTERNAL_MCP_URL');
-    const externalMcpToken =
-      this.configService.get<string>('EXTERNAL_MCP_TOKEN');
-
-    if (externalMcpUrl) {
-      try {
-        await this.mcpProxy.connect({
-          url: externalMcpUrl,
-          token: externalMcpToken,
-        });
-        this.logger.log('MCP Proxy initialized successfully');
-      } catch (error) {
-        this.logger.error('Failed to initialize MCP Proxy', error);
-      }
-    } else {
-      this.logger.warn(
-        'EXTERNAL_MCP_URL not configured. Proxy will not connect.',
-      );
+    try {
+      await this.mcpProxy.connect();
+      this.logger.log('MCP Proxy initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize MCP Proxy', error);
     }
   }
 

@@ -3,10 +3,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import { Tool, Resource, Prompt } from '@rekog/mcp-nest';
 import { McpProxyService } from './mcp-proxy.service';
-import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 
 interface ExternalTool {
@@ -35,40 +33,22 @@ export class DynamicToolsService implements OnModuleInit {
   private externalResources: ExternalResource[] = [];
   private externalPrompts: ExternalPrompt[] = [];
 
-  constructor(
-    private readonly mcpProxy: McpProxyService,
-    private readonly configService: ConfigService,
-    private readonly moduleRef: ModuleRef,
-  ) {}
+  constructor(private readonly mcpProxy: McpProxyService) {}
 
   async onModuleInit() {
-    // Conecta ao servidor MCP externo na inicialização
-    const externalMcpUrl = this.configService.get<string>('EXTERNAL_MCP_URL');
-    const externalMcpToken =
-      this.configService.get<string>('EXTERNAL_MCP_TOKEN');
+    try {
+      await this.mcpProxy.connect();
 
-    if (externalMcpUrl) {
-      try {
-        await this.mcpProxy.connect({
-          url: externalMcpUrl,
-          token: externalMcpToken,
-        });
+      // Busca as tools do servidor externo
+      await this.loadExternalTools();
 
-        // Busca as tools do servidor externo
-        await this.loadExternalTools();
+      // Busca resources e prompts do servidor externo
+      await this.loadExternalResources();
+      await this.loadExternalPrompts();
 
-        // Busca resources e prompts do servidor externo
-        await this.loadExternalResources();
-        await this.loadExternalPrompts();
-
-        this.logger.log('Dynamic MCP Proxy initialized successfully');
-      } catch (error) {
-        this.logger.error('Failed to initialize Dynamic MCP Proxy', error);
-      }
-    } else {
-      this.logger.warn(
-        'EXTERNAL_MCP_URL not configured. Dynamic proxy will not connect.',
-      );
+      this.logger.log('Dynamic MCP Proxy initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize Dynamic MCP Proxy', error);
     }
   }
 
