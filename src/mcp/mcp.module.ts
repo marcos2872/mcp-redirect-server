@@ -5,6 +5,7 @@ import {
   McpTransportType,
 } from '@rekog/mcp-nest';
 import { ToolsService } from './mcp.tools';
+import { McpProxyService } from './mcp-proxy.service';
 
 @Global()
 @Module({
@@ -16,6 +17,7 @@ import { ToolsService } from './mcp.tools';
       guards: [McpAuthJwtGuard],
     }),
   ],
-  providers: [ToolsService, McpAuthJwtGuard],
+  providers: [ToolsService, McpAuthJwtGuard, McpProxyService],
+  exports: [McpProxyService],
 })
 export class McpModule {}
