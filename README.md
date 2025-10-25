@@ -27,16 +27,19 @@ Este servidor atua como um **bridge duplo de autenticação**, resolvendo dois p
 - 🔐 **OAuth 2.1 com GitHub** - Cliente autentica via OAuth no frontend
 - 🔑 **API Login Automático** - Servidor faz login automático na API externa (email/senha)
 - 🎫 **Bearer Token Management** - Gerencia tokens automaticamente para o servidor MCP externo
+- 🔄 **Auto Refresh Token** - Renova tokens expirados automaticamente
+- ⏱️ **Token Caching** - Cache inteligente de tokens com validação de expiração
 
 ### Proxy Features:
 
 - 🌉 **Bridge Transparente** - Conecta diferentes tipos de autenticação
-- �️ **Proxy Tools** - 6 ferramentas para acessar servidor MCP externo
+- 🛠️ **Proxy Tools** - 6 ferramentas para acessar servidor MCP externo
 - 📡 **SSE Transport** - Server-Sent Events para comunicação em tempo real
-- � **Auto-Reconnect** - Reconexão e renovação de tokens automática
+- 🔄 **Auto-Reconnect** - Reconexão automática em caso de falha de autenticação
 - 🔒 **JWT Security** - Proteção de rotas com JWT
 - 💉 **Dependency Injection** - Sistema DI completo do NestJS
 - 📝 **Logs Detalhados** - Monitoramento completo de autenticação e proxy
+- 🛡️ **Error Recovery** - Recuperação automática de erros de token expirado
 
 ## 📦 Instalação
 
@@ -116,7 +119,10 @@ EXTERNAL_MCP_URL=https://api-externa.com/sse
 
 - O servidor faz login automático na `EXTERNAL_API_LOGIN_URL` usando email/senha
 - A resposta deve conter um campo `token` ou `access_token`
+- Opcionalmente, pode conter `expires_in` (tempo de expiração em segundos)
+- Se `expires_in` não for fornecido, assume-se 1 hora de validade
 - Este token é usado como Bearer token nas requisições para `EXTERNAL_MCP_URL`
+- O token é automaticamente renovado quando próximo da expiração (5 minutos antes)
 
 ## 🏃 Executar o projeto
 
@@ -208,9 +214,68 @@ Quando o servidor inicia:
 
 1. ✅ Configura OAuth com GitHub para clientes
 2. ✅ Faz login automático na API externa
-3. ✅ Conecta ao servidor MCP externo via SSE com Bearer token
-4. ✅ Registra as proxy tools
-5. ✅ Fica pronto para aceitar conexões de clientes
+3. ✅ Armazena o token com informações de expiração
+4. ✅ Conecta ao servidor MCP externo via SSE com Bearer token
+5. ✅ Registra as proxy tools
+6. ✅ Fica pronto para aceitar conexões de clientes
+
+### **Sistema de Refresh Token:**
+
+O servidor implementa um sistema inteligente de gerenciamento de tokens:
+
+#### Cache de Token:
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Token armazenado em memória com timestamp           │
+│ Validade: expires_in - 5 minutos (margem segurança) │
+│ Reutilizado enquanto válido (evita logins extras)   │
+└──────────────────────────────────────────────────────┘
+```
+
+#### Renovação Automática:
+
+```
+1️⃣ Antes de cada operação MCP
+   → Verifica se token está próximo de expirar
+   → Se sim, renova automaticamente
+
+2️⃣ Em caso de erro de autenticação (401/403)
+   → Detecta erro de autenticação
+   → Força refresh do token
+   → Reconecta com novo token
+   → Retenta operação automaticamente
+```
+
+#### Fluxo de Refresh:
+
+```
+Operação MCP solicitada
+    ↓
+Verifica expiração do token
+    ↓
+Token válido? ─── NÃO ──→ POST /auth/login
+    │                         ↓
+   SIM                   Novo token + expires_in
+    ↓                         ↓
+Usa token em cache      Atualiza cache
+    ↓                         ↓
+    └──────────→ Executa operação MCP
+                        ↓
+                  Erro 401/403? ─── SIM ──→ Força refresh
+                        │                         ↓
+                       NÃO                  Reconecta cliente
+                        ↓                         ↓
+                  Retorna resultado         Retenta operação
+```
+
+#### Benefícios do Sistema:
+
+- ✅ **Zero Downtime**: Tokens renovados antes de expirar
+- ✅ **Recuperação Automática**: Erros de autenticação tratados automaticamente
+- ✅ **Performance**: Cache evita logins desnecessários
+- ✅ **Transparente**: Cliente não percebe renovações
+- ✅ **Resiliente**: Reconexão automática em falhas
 
 ## 📚 Documentação
 
@@ -219,6 +284,9 @@ Quando o servidor inicia:
 - **Double Authentication Bridge**: Ponte entre OAuth (cliente) e API Login (servidor externo)
 - **Proxy Tools**: ferramentas para acessar servidor MCP externo de forma controlada
 - **Token Management**: Gerenciamento automático de JWT (cliente) e Bearer tokens (servidor)
+- **Auto Refresh Token**: Sistema inteligente que renova tokens antes de expirar
+- **Token Caching**: Cache de tokens com validação de expiração para melhor performance
+- **Error Recovery**: Recuperação automática de erros de autenticação com retry
 - **SSE Transport**: Comunicação em tempo real via Server-Sent Events
 
 ### **Links úteis:**
@@ -234,7 +302,10 @@ Quando o servidor inicia:
 - ✅ **Bridge Duplo**: Conecta OAuth (cliente) com API Login (servidor externo)
 - ✅ **Sem Modificação**: Usa servidores MCP existentes sem mudanças
 - ✅ **Segurança em Camadas**: OAuth no frontend + Bearer token no backend
-- ✅ **Gerenciamento Automático**: Tokens gerenciados automaticamente
+- ✅ **Gerenciamento Automático**: Tokens gerenciados e renovados automaticamente
+- ✅ **Zero Downtime**: Renovação preventiva de tokens antes da expiração
+- ✅ **Resiliente**: Recuperação automática de falhas de autenticação
+- ✅ **Performance Otimizada**: Cache de tokens evita logins desnecessários
 - ✅ **Isolamento de Credenciais**: Servidor externo nunca vê credenciais OAuth
 - ✅ **Logs Detalhados**: Monitoramento completo de autenticação e proxy
 - ✅ **Produção-Ready**: Implementação completa do protocolo MCP
@@ -247,7 +318,49 @@ Quando o servidor inicia:
 - ✅ **Credenciais Isoladas**: Senhas apenas em variáveis de ambiente
 - ✅ **Logs Sanitizados**: Senhas nunca aparecem nos logs
 - ✅ **Bearer Tokens**: Comunicação segura com servidor externo
+- ✅ **Token Rotation**: Renovação automática de tokens para segurança contínua
+- ✅ **Margem de Segurança**: Tokens renovados 5 minutos antes de expirar
 - ✅ **HTTPS Ready**: Preparado para produção com HTTPS
+
+## 🎯 Formato de Resposta da API Externa
+
+A API externa (`EXTERNAL_API_LOGIN_URL`) deve retornar uma resposta JSON no seguinte formato:
+
+### Resposta Mínima:
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+ou
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Resposta Recomendada (com expiração):
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 3600
+}
+```
+
+**Campos suportados:**
+
+- `token` ou `access_token` (string, obrigatório) - Bearer token para autenticação
+- `expires_in` (number, opcional) - Tempo de expiração em segundos (padrão: 3600)
+
+**Comportamento:**
+
+- Se `expires_in` for fornecido, o servidor usa esse valor
+- Caso contrário, assume 1 hora (3600 segundos) de validade
+- Token é renovado automaticamente 5 minutos antes de expirar
 
 ## 🛠️ Troubleshooting
 
@@ -274,6 +387,31 @@ Configure `EXTERNAL_MCP_URL` no `.env` com a URL SSE do servidor externo.
 - Verifique `GITHUB_CLIENT_ID` e `GITHUB_CLIENT_SECRET`
 - Confirme que a callback URL no GitHub está correta: `http://localhost:3000/auth/callback`
 - Verifique se `JWT_SECRET` tem pelo menos 32 caracteres
+
+### Token expira muito rápido
+
+- Verifique se a API externa retorna `expires_in` correto
+- O servidor renova tokens 5 minutos antes de expirar
+- Confira os logs para ver quando tokens estão sendo renovados
+- Logs de exemplo:
+  ```
+  [McpProxyService] Refreshing authentication token...
+  [McpProxyService] Token refreshed successfully. Expires in 3600s
+  [McpProxyService] Using cached token
+  ```
+
+### Erro: "MCP client is not connected"
+
+- O servidor tenta reconectar automaticamente
+- Verifique se `EXTERNAL_MCP_URL` está acessível
+- Confira logs de erro de conexão
+- Sistema tentará reconectar na próxima operação
+
+### Erro 401/403 do servidor externo
+
+- Sistema detecta automaticamente e força refresh do token
+- Se persistir, verifique credenciais `EXTERNAL_API_USER` e `EXTERNAL_API_PASSWORD`
+- Confirme que a API de login está funcionando corretamente
 
 ## 📝 Licença
 
