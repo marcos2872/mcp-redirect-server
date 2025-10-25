@@ -4,8 +4,8 @@ export class ToolsService {
   constructor() {}
 
   @Tool({
-    name: 'getUserByEmail',
-    description: 'Get a specific user by Email',
+    name: 'tool',
+    description: 'tool',
   })
   tool(context?: any) {
     console.log('Executing tool with context:', context);

@@ -48,7 +48,7 @@ JWT_SECRET=my-super-secure-jwt-secret-key-with-at-least-32-characters
 
 # Server Configuration
 SERVER_URL=http://localhost:3000
-RESOURCE_URL=http://localhost:3000/mcp
+RESOURCE_URL=http://localhost:3000/sse
 
 # Port
 PORT=3000
@@ -78,17 +78,22 @@ O servidor estará disponível em: `http://localhost:3000`
 
 ## 🧪 Testar com MCP Inspector
 
-1. Abra o navegador em: `http://localhost:3000/mcp`
-2. Configure o Inspector:
+## MCP Inspector
+
+1. ```bash
+   npx @modelcontextprotocol/nspector
+   ```
+
+1. Configure o Inspector:
    - **Transport Type**: SSE
    - **URL**: `http://localhost:3000/sse`
    - **Connection Type**: Via Proxy
-3. Clique em **Authentication** para configurar OAuth
-4. Clique em **Connect**
+1. Clique em **Authentication** para configurar OAuth
+1. Clique em **Connect**
 
 ## 🛠️ Tools Disponíveis
 
-- `getUserByEmail` - Obtém um usuário por email
+- `tool`
 
 ## 📚 Documentação
 
@@ -124,19 +129,6 @@ $ pnpm run start:dev
 
 # production mode
 $ pnpm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
 ```
 
 ## Deployment
