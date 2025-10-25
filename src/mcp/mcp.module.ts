@@ -4,7 +4,7 @@ import {
   McpAuthJwtGuard,
   McpTransportType,
 } from '@rekog/mcp-nest';
-import { ToolsService } from './mcp.tools';
+import { DynamicToolsService } from './dynamic-tools.service';
 import { McpProxyService } from './mcp-proxy.service';
 
 @Global()
@@ -17,7 +17,7 @@ import { McpProxyService } from './mcp-proxy.service';
       guards: [McpAuthJwtGuard],
     }),
   ],
-  providers: [ToolsService, McpAuthJwtGuard, McpProxyService],
-  exports: [McpProxyService],
+  providers: [DynamicToolsService, McpAuthJwtGuard, McpProxyService],
+  exports: [McpProxyService, DynamicToolsService],
 })
 export class McpModule {}
