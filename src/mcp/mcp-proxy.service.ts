@@ -28,11 +28,10 @@ export class McpProxyService {
       return this.currentToken;
     }
 
-    const authUrl = this.configService.get<string>('EXTERNAL_API_LOGIN_URL');
-    const user = this.configService.get<string>('EXTERNAL_API_USER');
-    const pass = this.configService.get<string>('EXTERNAL_API_PASSWORD');
+    const authUrl = this.configService.get<string>('EXTERNAL_API_AUTH_MCP_URL');
+    const key = this.configService.get<string>('EXTERNAL_API_KEY');
 
-    if (!authUrl || !user || !pass) {
+    if (!authUrl || !key) {
       throw new Error('Authentication configuration is incomplete');
     }
 
@@ -44,7 +43,10 @@ export class McpProxyService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: user, password: pass }),
+        body: JSON.stringify({
+          email: 'admin@example.com',
+          key,
+        }),
       });
 
       if (!response.ok) {
